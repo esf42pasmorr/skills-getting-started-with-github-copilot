@@ -20,11 +20,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        // Create participants section HTML
+        let participantsHtml = '';
+        if (details.participants.length > 0) {
+          const participantsList = details.participants.map(participant => 
+            `<li>
+              <div class="participant-item">
+                <span class="participant-email">${participant}</span>
+                <button class="delete-button" onclick="unregisterParticipant('${name}', '${participant}')" title="Rimuovi partecipante">
+                  ×
+                </button>
+              </div>
+            </li>`
+          ).join('');
+          participantsHtml = `
+            <div class="activity-card-participants">
+              <h5>Partecipanti iscritti:</h5>
+              <ul>
+                ${participantsList}
+              </ul>
+            </div>
+          `;
+        } else {
+          participantsHtml = `
+            <div class="activity-card-participants">
+              <h5>Partecipanti iscritti:</h5>
+              <p style="color: #666; font-style: italic; margin: 0;">Nessun partecipante ancora iscritto</p>
+            </div>
+          `;
+        }
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          ${participantsHtml}
         `;
 
         activitiesList.appendChild(activityCard);
@@ -62,6 +93,9 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        
+        // Refresh activities list to show updated participants
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -80,6 +114,47 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error signing up:", error);
     }
   });
+
+  // Function to unregister a participant
+  async function unregisterParticipant(activityName, email) {
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        messageDiv.textContent = result.message;
+        messageDiv.className = "success";
+        
+        // Refresh activities list to show updated participants
+        fetchActivities();
+      } else {
+        messageDiv.textContent = result.detail || "An error occurred";
+        messageDiv.className = "error";
+      }
+
+      messageDiv.classList.remove("hidden");
+
+      // Hide message after 5 seconds
+      setTimeout(() => {
+        messageDiv.classList.add("hidden");
+      }, 5000);
+
+    } catch (error) {
+      messageDiv.textContent = "Failed to unregister participant. Please try again.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      console.error("Error unregistering participant:", error);
+    }
+  }
+
+  // Make unregisterParticipant available globally so it can be called from onclick
+  window.unregisterParticipant = unregisterParticipant;
 
   // Initialize app
   fetchActivities();
